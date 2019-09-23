@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:util="http://www.springframework.org/schema/util"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+           http://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/context
+           http://www.springframework.org/schema/context/spring-context.xsd
+           http://www.springframework.org/schema/aop
+           http://www.springframework.org/schema/aop/spring-aop.xsd
+           http://www.springframework.org/schema/tx
+           http://www.springframework.org/schema/tx/spring-tx.xsd
+           http://www.springframework.org/schema/util
+           http://www.springframework.org/schema/util/spring-util.xsd">
+
+    <!-- 导入数据库、日志属性文件 -->
+    <context:property-placeholder location="classpath:db.properties"/>
+
+    <!-- 开启组件扫描 -->
+    <context:component-scan base-package="com.blog.service"></context:component-scan>
+
+    <!-- 使aspectj注解生效，采用cglib动态代理 -->
+    <aop:aspectj-autoproxy proxy-target-class="true"></aop:aspectj-autoproxy>
+
+    <!-- 配置 C3P0 数据源 -->
+    <bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+        <property name="user" value="${jdbc.user}"></property>
+        <property name="password" value="${jdbc.password}"></property>
+        <property name="driverClass" value="${jdbc.driverClass}"></property>
+        <property name="jdbcUrl" value="${jdbc.jdbcUrl}"></property>
+        <property name="initialPoolSize" value="${jdbc.initPoolSize}"></property>
+        <property name="maxPoolSize" value="${jdbc.maxPoolSize}"></property>
+    </bean>
+    <!-- 配置druid数据源 -->
+    <!--<bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource">
+        <property name="url" value="${jdbc.jdbcUrl}"/>
+        <property name="username" value="${jdbc.user}"/>
+        <property name="password" value="${jdbc.password}"/>
+        <property name="driverClassName" value="${jdbc.driverClass}"></property>
+    </bean>-->
+
+    <!-- 配置 SqlSessionFactory，整合Mybatis-->
+    <bean id="factory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSource"></property>
+        <!-- 自动扫描mapper.xml文件 -->
+        <property name="mapperLocations" value="classpath:com/blog/dao/*.xml"/>
+        <!--配置别名-->
+        <property name="typeAliasesPackage" value="com.blog.entity"></property>
+    </bean>
+
+    <!-- 配置扫描器，相当于mybatis.xml中的mappers标签下的子标签package-->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <!--  扫描对应包后会给对应接口创建对象，必须得编写接口-->
+        <property name="basePackage" value="com.blog.dao"></property>
+        <!-- 引用sqlSessionFactory -->
+        <property name="sqlSessionFactoryBeanName" value="factory"></property>
+    </bean>
+
+    <!-- 自定义Realm，实现登录权限验证-->
+    <bean id="myRealm" class="com.blog.realm.MyRealm">
+        <property name="credentialsMatcher"><!--凭证匹配器-->
+            <!--让页面传来的明文密码经MD5加密1024次-->
+            <bean class="org.apache.shiro.authc.credential.HashedCredentialsMatcher">
+                <!--采用加密算法名称-->
+                <property name="hashAlgorithmName" value="MD5"></property>
+                <!--加密次数-->
+                <property name="hashIterations" value="1024"></property>
+            </bean>
+        </property>
+    </bean>
+
+    <!-- 配置shiro核心组件，安全管理器securityManager，只作登录认证 -->
+    <bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+        <property name="realm" ref="myRealm"/>
+    </bean>
+
+    <!-- Shiro过滤器，用于过滤安全管理器
+         id必须和web.xml文件中配置的DelegatingFilterProxy的<filter-name>一致-->
+    <bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+        <!-- Shiro的核心安全接口，这个属性是必须的 -->
+        <property name="securityManager" ref="securityManager"/>
+        <!-- 身份认证失败，跳转到登陆页面的配置 -->
+        <property name="loginUrl" value="/login.jsp"/>
+        <!--配置哪些页面需要受保护，以及访问哪些页面需要的权限
+            1.anon 可以被匿名访问
+            2.authc 必须认证即登录后才可以访问的页面
+        -->
+        <property name="filterChainDefinitions">
+            <value>
+                /login.jsp=anon<!--不过滤登录-->
+                /admin/**=authc<!--过滤访问admin下的资源-->
+            </value>
+        </property>
+    </bean>
+
+    <!-- 保证实现了Shiro内部生命周期函数的bean能够执行-->
+    <bean id="lifecycleBeanPostProcessor" class="org.apache.shiro.spring.LifecycleBeanPostProcessor"/>
+
+    <!-- 开启Shiro注解，但必须在配置了LifecycleBeanPostProcessor之后才能使用 -->
+    <bean class="org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator"
+          depends-on="lifecycleBeanPostProcessor"/>
+    <bean class="org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor">
+        <property name="securityManager" ref="securityManager"/>
+    </bean>
+
+    <!-- 配置事务管理器 -->
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+
+    <!--使用注解事务-->
+    <!--<tx:annotation-driven transaction-manager="transactionManager"/>-->
+
+    <!-- 配置事务切面 -->
+    <aop:config>
+        <aop:pointcut id="serviceOperation" expression="execution(* com.blog.service.*.*(..))"/>
+        <aop:advisor advice-ref="txAdvice" pointcut-ref="serviceOperation"/>
+    </aop:config>
+
+    <!-- 配置事务通知属性 -->
+    <tx:advice id="txAdvice" transaction-manager="transactionManager">
+        <!-- 定义事务传播属性 -->
+        <tx:attributes>
+            <tx:method name="insert*" propagation="REQUIRED"/>
+            <tx:method name="upd*" propagation="REQUIRED"/>
+            <tx:method name="edit*" propagation="REQUIRED"/>
+            <tx:method name="save*" propagation="REQUIRED"/>
+            <tx:method name="add*" propagation="REQUIRED"/>
+            <tx:method name="new*" propagation="REQUIRED"/>
+            <tx:method name="set*" propagation="REQUIRED"/>
+            <tx:method name="remove*" propagation="REQUIRED"/>
+            <tx:method name="del*" propagation="REQUIRED"/>
+            <tx:method name="change*" propagation="REQUIRED"/>
+            <tx:method name="check*" propagation="REQUIRED"/>
+            <tx:method name="get*" read-only="true"/>
+            <tx:method name="find*" read-only="true"/>
+            <tx:method name="load*" read-only="true"/>
+            <tx:method name="*" propagation="REQUIRED" read-only="true"/>
+        </tx:attributes>
+    </tx:advice>
+
+
+
+
+</beans>
+

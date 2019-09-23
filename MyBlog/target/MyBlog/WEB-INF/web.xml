@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+ <web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+          xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee
+                              http://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd"
+          version="3.1">
+    <!--欢迎页面-->
+    <welcome-file-list>
+        <welcome-file>a.jsp</welcome-file>
+    </welcome-file-list>
+
+  <!--配置上下文参数，描述spring配置文件的位置信息-->
+  <context-param>
+    <param-name>contextConfigLocation</param-name>
+    <param-value>classpath:applicationContext.xml</param-value>
+  </context-param>
+
+  <!-- Shiro过滤器定义 -->
+  <filter>
+    <filter-name>shiroFilter</filter-name>
+    <filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
+    <init-param>
+      <!-- 该值缺省为false，表示生命周期由SpringApplicationContext管理，
+           设置为true表示由ServletContainer管理 -->
+      <param-name>targetFilterLifecycle</param-name>
+      <param-value>true</param-value>
+    </init-param>
+  </filter>
+  <filter-mapping>
+    <filter-name>shiroFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+  </filter-mapping>
+
+  <!--配置HiddenHttpMethodFilter，把post请求转化为delete、put请求-->
+  <!--<filter>
+    <filter-name>HiddenHttpMethodFilter</filter-name>
+    <filter-class>org.springframework.web.filter.HiddenHttpMethodFilter</filter-class>
+  </filter>-->
+  <!--<filter-mapping>
+    <filter-name>HiddenHttpMethodFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+  </filter-mapping>-->
+
+  <!-- spring提供的字符编码过滤器 -->
+  <filter>
+    <filter-name>MyEncoding</filter-name>
+    <filter-class>org.springframework.web.filter.CharacterEncodingFilter</filter-class>
+    <async-supported>true</async-supported><!--异步加载-->
+    <init-param>
+      <param-name>encoding</param-name>
+      <param-value>utf-8</param-value>
+    </init-param>
+  </filter>
+  <filter-mapping>
+    <filter-name>MyEncoding</filter-name>
+    <url-pattern>/*</url-pattern>
+  </filter-mapping>
+
+  <!--spring监听器，当tomcat启动时会加载spring配置文件-->
+  <listener>
+    <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+  </listener>
+    <!--当tomcat启动的时候就初始化博客类别信息，而不是新增一次博客就查询一次博客类别，以提高系统效率，
+        节省资源-->
+  <listener>
+    <listener-class>com.blog.service.impl.InitComponent</listener-class>
+  </listener>
+
+  <!--配置springMVC的前端控制器-->
+  <!-- 加载配置文件的时候，通过前端控制器进行一系列初始化操作，会创建出springMVC容器，
+       它是spring容器的子容器，可以调用父容器中的所有资源 -->
+  <servlet>
+    <servlet-name>springMVC</servlet-name>
+    <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+    <!-- 修改springmvc配置文件的路径和名称 ，默认位置在WEB-INF下
+         默认名称为（前端控制器名）servletName-servlet.xml-->
+    <init-param>
+      <param-name>contextConfigLocation</param-name>
+      <param-value>classpath:springmvc.xml</param-value>
+    </init-param>
+    <!-- 自启动，在tomcat启动时就启动 -->
+    <load-on-startup>1</load-on-startup>
+    <async-supported>true</async-supported><!--支持异步加载-->
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>springMVC</servlet-name>
+    <url-pattern>/</url-pattern>
+  </servlet-mapping>
+  <servlet-mapping>
+    <servlet-name>springMVC</servlet-name>
+    <url-pattern>*.html</url-pattern>
+  </servlet-mapping>
+
+  <absolute-ordering/>
+
+
+
+</web-app>

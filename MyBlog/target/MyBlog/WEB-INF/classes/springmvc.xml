@@ -1,0 +1,95 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:util="http://www.springframework.org/schema/util"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:mvc="http://www.springframework.org/schema/mvc"
+    xmlns:context="http://www.springframework.org/schema/context"
+    xmlns:aop="http://www.springframework.org/schema/aop"
+    xmlns:tx="http://www.springframework.org/schema/tx"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans 
+    http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+    http://www.springframework.org/schema/context
+    http://www.springframework.org/schema/context/spring-context.xsd 
+    http://www.springframework.org/schema/aop
+    http://www.springframework.org/schema/aop/spring-aop.xsd 
+    http://www.springframework.org/schema/tx  
+    http://www.springframework.org/schema/tx/spring-tx.xsd
+    http://www.springframework.org/schema/util
+    http://www.springframework.org/schema/util/spring-util-4.0.xsd
+    http://www.springframework.org/schema/mvc
+    http://www.springframework.org/schema/mvc/spring-mvc.xsd">
+
+
+   <!-- 配置HandlerMapping -->
+   <!-- <bean class="org.springframework.web.servlet.handler.SimpleUrlHandlerMapping">
+        <property name="urlMap">
+             <map>key：由HandlerMapping解析出来的控制器逻辑名
+                       value-ref：指向希望执行的具体的某一个控制器，但只是希望，并不执行
+                                              具体执行交给HandlerAdapter适配器去做
+                  <entry key="demo" value-ref="demoController"></entry>
+             </map>
+        </property> 
+   </bean>-->
+   <!-- 自定义适配器，也可不配置使用默认的适配器-->
+   <!-- <bean class="org.springframework.web.servlet.mvc.SimpleControllerHandlerAdapter"></bean> -->
+
+   <!--自定义视图解析器，也可不配置使用默认的视图解析器-->
+    <bean id="viewResolver" class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+        <property name="prefix" value="/"></property>
+        <property name="suffix" value=".jsp"></property>
+   </bean>
+
+   <!-- 组件扫描 -->
+   <context:component-scan base-package="com.blog.controller"></context:component-scan>
+
+   <!-- 加载注解驱动
+        该标签相当于配置了
+        当请求的是静态资源时，处理器映射器HandlerMapping找不到与其URL对应的Handler，
+   无法返回一个Handler给前端控制器，自然，前端控制器也无法调用处理器适配器HandlerAdapter去调用执行
+   对应的HandlerMethod
+   配置该标签的目的就是让前端控制器放行该类静态资源
+         org.springframework.web.servlet.mvc.annotation.DefaultAnnotationHandlerMapping  
+         org.springframework.web.servlet.mvc.annotation.AnnotationMethodHandlerAdapter
+   -->
+   <mvc:default-servlet-handler/>
+    <!--将请求静态资源的URL（即没有经过映射的请求）交给这个servlet去处理，即web服务器中默认的servlet
+        而不是spring MVC的前端控制器去处理
+    -->
+   <mvc:annotation-driven/><!--必须配置，否则配置上面的标签后，其他的请求均无法被处理-->
+   <!-- 加载静态资源，第2种解决方案
+        mapping属性为在浏览器中希望请求的url（映射路径），location属性为要加载的资源的绝对路径
+    -->
+   <!--<mvc:resources location="/js/" mapping="/js/**"></mvc:resources>
+   <mvc:resources location="/files/" mapping="/files/**"></mvc:resources>-->
+   
+   <!-- 配置MultipartResolver组件，处理文件上传-->
+   <bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+        <property name="defaultEncoding" value="UTF-8"/>
+        <!-- 限制上传文件大小为1k，超过时会发生MaxUploadSizeExceededException这个异常 -->
+        <property name="maxUploadSize" value="10240000"></property>
+   </bean>
+
+   <!-- 配置ExceptionResolver组件，当发生某一类型的异常时跳转到某个视图页面 -->
+   <bean id="exceptionResolver" class="org.springframework.web.servlet.handler.SimpleMappingExceptionResolver">
+        <property name="exceptionMappings">
+              <props><!-- key:具体发生的异常类型 -->
+                  <prop key="org.springframework.web.multipart.MaxUploadSizeExceededException">/error.jsp</prop>
+              </props>
+        </property>
+   </bean>
+    
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    
+</beans>
